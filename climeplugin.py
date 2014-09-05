@@ -40,8 +40,8 @@ class TranslationUnit:
         # node.location.file can be None while node.extent.start.file is not O_o
         result = (node.extent.start.file is not None and location.file is not None
             and node.extent.start.file.name == location.file.name
-            and location.line >= node.extent.start.line
-            and location.line <= node.extent.end.line)
+            and ((location.line > node.extent.start.line) or (location.line == node.extent.start.line and location.column >= node.extent.start.column))
+            and ((location.line < node.extent.end.line) or (location.line == node.extent.end.line and location.column <= node.extent.end.column)))
         return result
 
     def __find_node_for_diagnostic(self, node, diagnostic):
@@ -53,30 +53,22 @@ class TranslationUnit:
                 return n
         return node
 
-    def __find_diag_node_tokens(self, node, diagnostic):
-        if node is not None:
-            for token in node.get_tokens():
-                if (diagnostic.location.line >= token.extent.start.line
-                    and diagnostic.location.line <= token.extent.end.line):
-                    return token
-        return None
-
     def calculate_error_regions(self):
         self.error_regions = []
         self.errors_by_line = {}
         for diagnostic in self.translation_unit.diagnostics:
             node = self.__find_node_for_diagnostic(self.translation_unit.cursor, diagnostic)
-            token = self.__find_diag_node_tokens(node, diagnostic)
-            if token is not None:
-                line = node.location.line
-                column = node.location.column
-            elif node is not None:
-                line = node.location.line
-                column = node.location.column
+            if node is not None:
+                start_line = node.extent.start.line - 1
+                start_column = node.extent.start.column -1
+                end_line = node.extent.end.line - 1
+                end_column = node.extent.end.column -1
+                self.error_regions.append(sublime.Region(self.view.text_point(start_line, start_column), self.view.text_point(end_line, end_column)))
             else:
                 line = diagnostic.location.line
                 column = diagnostic.location.column
-            self.error_regions.append(self.view.full_line(self.view.text_point(line - 1, column - 1)))
+                self.error_regions.append(self.view.full_line(self.view.text_point(line - 1, column - 1)))
+
             self.errors_by_line[diagnostic.location.line - 1] = diagnostic.spelling
 
 
