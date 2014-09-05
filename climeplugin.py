@@ -28,6 +28,7 @@ class TranslationUnit:
         self.view = view
         self.index = index
         self.error_regions = []
+        self.warning_regions = []
         self.errors_by_line = {}
         self.translation_unit = self.index.parse(view.file_name(), args=['-x', 'c++'], unsaved_files=[(self.view.file_name(), self.view.substr(sublime.Region(0, self.view.size())))])
         self.calculate_error_regions()
@@ -55,8 +56,12 @@ class TranslationUnit:
 
     def calculate_error_regions(self):
         self.error_regions = []
+        self.warning_regions = []
         self.errors_by_line = {}
         for diagnostic in self.translation_unit.diagnostics:
+
+            regions = self.error_regions if diagnostic.severity > 2 else self.warning_regions
+
             node = self.__find_node_for_diagnostic(self.translation_unit.cursor, diagnostic)
 
             # only use nodes that fit on one line. Otherwise it looks better to just use the line from the diagnostic
@@ -65,11 +70,11 @@ class TranslationUnit:
                 start_column = node.extent.start.column -1
                 end_line = node.extent.end.line - 1
                 end_column = node.extent.end.column -1
-                self.error_regions.append(sublime.Region(self.view.text_point(start_line, start_column), self.view.text_point(end_line, end_column)))
+                regions.append(sublime.Region(self.view.text_point(start_line, start_column), self.view.text_point(end_line, end_column)))
             else:
                 line = diagnostic.location.line
                 column = diagnostic.location.column
-                self.error_regions.append(self.view.full_line(self.view.text_point(line - 1, column - 1)))
+                regions.append(self.view.full_line(self.view.text_point(line - 1, column - 1)))
 
             self.errors_by_line[diagnostic.location.line - 1] = diagnostic.spelling
 
@@ -83,6 +88,11 @@ class SyntaxChecker:
     def __init__(self):
         self.index = clang.cindex.Index.create()
         self.translation_units = {}
+        self.warning_icon = 'Packages/clime/icons/warning.png'
+        self.error_icon = 'Packages/clime/icons/error.png'
+
+        sublime.load_binary_resource(self.warning_icon)
+        sublime.load_binary_resource(self.error_icon)
 
     def create_translation_unit(self, view):
         if view.id() in self.translation_units:
@@ -107,10 +117,17 @@ class SyntaxChecker:
         if not view.id() in self.translation_units:
             return;
 
+        view.erase_regions('clime_warnings')
         view.erase_regions('clime_errors')
+
+        warning_regions = self.translation_units[view.id()].warning_regions
+        if warning_regions:
+            view.add_regions('clime_warnings', warning_regions, 'invalid.deprecated', self.warning_icon, sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.PERSISTENT)
+            self.show_status(view)
+
         error_regions = self.translation_units[view.id()].error_regions
         if error_regions:
-            view.add_regions('clime_errors', error_regions, 'error', 'cross', sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.PERSISTENT)
+            view.add_regions('clime_errors', error_regions, 'invalid', self.error_icon, sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.PERSISTENT)
             self.show_status(view)
 
     def show_status(self, view):
