@@ -80,14 +80,22 @@ class SyntaxChecker:
         error_regions = self.translation_units[view.id()].error_regions
         if error_regions:
             view.add_regions('clime_errors', error_regions, 'error', 'cross', sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.PERSISTENT)
-            row, col = view.rowcol(view.sel()[0].begin())
-            self.show_status(view, row)
+            self.show_status(view)
 
-    def show_status(self, view, line_number):
+    def show_status(self, view):
         if not view.id() in self.translation_units:
             return;
 
-        error_status = self.translation_units[view.id()].error_for_line(line_number)
+        selection = view.sel()
+
+        # don't attempt to show status if the user is using multi select
+        if len(selection) > 1:
+            view.erase_status('clime_error')
+            return
+
+        row, col = view.rowcol(selection[0].begin())
+
+        error_status = self.translation_units[view.id()].error_for_line(row)
         if (error_status):
             view.set_status('clime_error', error_status)
         else:
@@ -131,8 +139,7 @@ class ClimeEventListener(sublime_plugin.EventListener):
         self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
 
     def on_selection_modified_async(self, view):
-        row, col = view.rowcol(view.sel()[0].begin())
-        syntax_checker.show_status(view, row)
+        syntax_checker.show_status(view)
 
     def run_syntax_check(self, view):
         if view.id() in self.pendingSyntaxChecks or not view.file_name():
