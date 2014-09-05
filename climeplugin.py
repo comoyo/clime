@@ -54,15 +54,16 @@ class SyntaxChecker:
         self.translation_units = {}
 
     def create_translation_unit(self, view):
-        if view.id() in self.translation_units or not view.file_name():
-            return
+        if view.id() in self.translation_units:
+            return True
 
-        file_name, file_extension = os.path.splitext(view.file_name())
+        file_name, file_extension = os.path.splitext(view.file_name() or '')
         if not file_extension in shared_settings.get('file_extensions'):
-            return
+            return False
 
         self.translation_units[view.id()] = TranslationUnit(view, self.index)
         self.show_diagnostics(view)
+        return True
 
     def reparse_translation_unit(self, view):
         if not view.id() in self.translation_units:
@@ -109,21 +110,25 @@ def plugin_loaded():
 
 class ClimeSyntaxCheckCommand(sublime_plugin.TextCommand):
     def run(self, edit):
-        syntax_checker.create_translation_unit(self.view)
         syntax_checker.reparse_translation_unit(self.view)
 
 class ClimeEventListener(sublime_plugin.EventListener):
     def __init__(self):
         self.pendingSyntaxChecks = set()
+        self.should_check_syntax = {}
 
     def on_modified_async(self, view):
-        self.run_syntax_check(view)
+        # FIXME: creating the translation unit here is only necessary durin plugin development.
+        # It should be removed
+        self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
+        if self.should_check_syntax[view.id()]:
+            self.run_syntax_check(view)
 
     def on_save_async(self, view):
-        syntax_checker.create_translation_unit(view)
+        self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
 
     def on_load_async(self, view):
-        syntax_checker.create_translation_unit(view)
+        self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
 
     def on_selection_modified_async(self, view):
         row, col = view.rowcol(view.sel()[0].begin())
