@@ -58,7 +58,9 @@ class TranslationUnit:
         self.errors_by_line = {}
         for diagnostic in self.translation_unit.diagnostics:
             node = self.__find_node_for_diagnostic(self.translation_unit.cursor, diagnostic)
-            if node is not None:
+
+            # only use nodes that fit on one line. Otherwise it looks better to just use the line from the diagnostic
+            if node is not None and node.extent.start.line == node.extent.end.line:
                 start_line = node.extent.start.line - 1
                 start_column = node.extent.start.column -1
                 end_line = node.extent.end.line - 1
