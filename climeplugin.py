@@ -29,11 +29,11 @@ class TranslationUnit:
         self.index = index
         self.error_regions = []
         self.errors_by_line = {}
-        self.translation_unit = self.index.parse(view.file_name(), unsaved_files=[(self.view.file_name(), self.view.substr(sublime.Region(0, self.view.size())))])
+        self.translation_unit = self.index.parse(view.file_name(), args=['-x', 'c++'], unsaved_files=[(self.view.file_name(), self.view.substr(sublime.Region(0, self.view.size())))])
         self.calculate_error_regions()
 
     def reparse(self):
-        self.translation_unit.reparse(unsaved_files=[(self.view.file_name(), self.view.substr(sublime.Region(0, self.view.size())))])
+        self.translation_unit.reparse(args=['-x', 'c++'], unsaved_files=[(self.view.file_name(), self.view.substr(sublime.Region(0, self.view.size())))])
         self.calculate_error_regions()
 
     def __node_contains_location(self, node, location):
