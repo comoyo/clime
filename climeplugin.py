@@ -137,6 +137,10 @@ class ClimeEventListener(sublime_plugin.EventListener):
     def on_load_async(self, view):
         self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
 
+    def on_activated_async(self, view):
+        if not view.id() in self.should_check_syntax:
+            self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
+
     def on_selection_modified_async(self, view):
         syntax_checker.show_status(view)
 
