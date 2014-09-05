@@ -126,9 +126,8 @@ class ClimeEventListener(sublime_plugin.EventListener):
         self.should_check_syntax = {}
 
     def on_modified_async(self, view):
-        # FIXME: creating the translation unit here is only necessary durin plugin development.
-        # It should be removed
-        self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
+        if not view.id() in self.should_check_syntax:
+            self.should_check_syntax[view.id()] = syntax_checker.create_translation_unit(view)
         if self.should_check_syntax[view.id()]:
             self.run_syntax_check(view)
 
